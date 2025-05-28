@@ -1,0 +1,1765 @@
+# Prompt Lengkap: Linktree Clone dengan Next.js & Supabase
+
+## Deskripsi Proyek
+Buat website clone Linktree dengan fitur lengkap menggunakan Next.js 14+ dan Supabase. Website harus memiliki 2 tipe akun: Brand (basic) dan Content Creator (advanced dengan portfolio).
+
+## Teknologi Stack
+- **Frontend**: Next.js 14+ (App Router), TypeScript, Tailwind CSS
+- **Backend**: Supabase (Database, Auth, Storage)
+- **Deployment**: Vercel
+- **Security**: Rate limiting, input sanitization, CORS
+- **SEO**: Next.js metadata API, sitemap generation
+- **Performance**: Image optimization, lazy loading, caching
+
+## Struktur Database (Supabase)
+
+### Tabel Users
+```sql
+CREATE TABLE users (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email TEXT UNIQUE NOT NULL,
+  username TEXT UNIQUE NOT NULL,
+  account_type TEXT CHECK (account_type IN ('brand', 'creator')) NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+```
+
+### Tabel Profiles
+```sql
+CREATE TABLE profiles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  display_name TEXT NOT NULL,
+  bio TEXT,
+  avatar_url TEXT,
+  background_image TEXT,
+  theme_color TEXT DEFAULT '#000000',
+  custom_domain TEXT,
+  is_public BOOLEAN DEFAULT true,
+  seo_title TEXT,
+  seo_description TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+```
+
+### Tabel Links
+```sql
+CREATE TABLE links (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  url TEXT NOT NULL,
+  description TEXT,
+  thumbnail_url TEXT,
+  is_active BOOLEAN DEFAULT true,
+  click_count INTEGER DEFAULT 0,
+  order_index INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+```
+
+### Tabel Portfolio (khusus Content Creator)
+```sql
+CREATE TABLE portfolio_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  description TEXT,
+  image_url TEXT,
+  project_url TEXT,
+  category TEXT,
+  technologies TEXT[],
+  order_index INTEGER DEFAULT 0,
+  is_featured BOOLEAN DEFAULT false,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+```
+
+### Tabel Analytics
+```sql
+CREATE TABLE analytics (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  link_id UUID REFERENCES links(id) ON DELETE CASCADE,
+  visitor_ip TEXT,
+  user_agent TEXT,
+  referrer TEXT,
+  country TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+```
+
+## File Environment (.env.local)
+```env
+# App Configuration
+NEXT_PUBLIC_APP_NAME="LinkHub"
+NEXT_PUBLIC_APP_URL="https://linkhub.vercel.app"
+NEXT_PUBLIC_APP_DESCRIPTION="Platform link in bio terpercaya untuk Brand dan Content Creator"
+
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL="your_supabase_project_url"
+NEXT_PUBLIC_SUPABASE_ANON_KEY="your_supabase_anon_key"
+SUPABASE_SERVICE_ROLE_KEY="your_supabase_service_role_key"
+
+# Security
+NEXTAUTH_SECRET="your_nextauth_secret_key"
+NEXTAUTH_URL="https://linkhub.vercel.app"
+
+# Rate Limiting
+UPSTASH_REDIS_REST_URL="your_upstash_redis_url"
+UPSTASH_REDIS_REST_TOKEN="your_upstash_redis_token"
+
+# Analytics (Optional)
+GOOGLE_ANALYTICS_ID="G-XXXXXXXXXX"
+
+# Email Service (Optional)
+RESEND_API_KEY="your_resend_api_key"
+```
+
+## Fitur Utama yang Harus Dibangun
+
+### 1. Authentication & User Management
+- Sign up/Login dengan email
+- Email verification
+- Password reset
+- Profile management
+- Account type selection (Brand/Creator)
+
+### 2. Dashboard
+- Overview analytics
+- Link management (CRUD)
+- Profile customization
+- Theme selection
+- Custom domain setup
+
+### 3. Public Profile Pages
+- Responsive design
+- SEO optimized
+- Social sharing
+- Click tracking
+- Custom themes
+
+### 4. Brand Features
+- Basic link collection
+- Simple bio
+- Social media links
+- Basic analytics
+- Theme customization
+
+### 5. Content Creator Features (Advanced)
+- Portfolio gallery
+- Project showcase
+- Advanced bio with rich text
+- Category filtering
+- Featured projects
+- Advanced analytics
+- Custom CSS injection
+
+### 6. Security Features
+- Input sanitization dengan DOMPurify
+- Rate limiting (15 requests/minute)
+- CORS protection
+- SQL injection prevention
+- XSS protection
+- CSRF tokens
+
+### 7. SEO & Performance
+- Dynamic meta tags
+- Open Graph tags
+- Sitemap generation
+- Image optimization
+- Lazy loading
+- Server-side rendering
+- Caching strategy
+
+## Struktur Folder yang Diinginkan
+```
+src/
+├── app/
+│   ├── (auth)/
+│   │   ├── login/
+│   │   └── register/
+│   ├── (dashboard)/
+│   │   ├── dashboard/
+│   │   ├── links/
+│   │   ├── portfolio/ (creator only)
+│   │   └── settings/
+│   ├── [username]/
+│   │   └── page.tsx
+│   ├── api/
+│   │   ├── auth/
+│   │   ├── links/
+│   │   ├── portfolio/
+│   │   └── analytics/
+│   └── globals.css
+├── components/
+│   ├── ui/ (shadcn components)
+│   ├── auth/
+│   ├── dashboard/
+│   └── public/
+├── lib/
+│   ├── supabase/
+│   ├── utils/
+│   └── validations/
+├── hooks/
+├── types/
+└── middleware.ts
+```
+
+## Komponen UI yang Diperlukan
+- Header/Navigation
+- Sidebar dashboard
+- Link card components
+- Portfolio gallery
+- Analytics charts
+- Theme selector
+- Form components dengan validation
+- Loading states
+- Error boundaries
+
+## API Endpoints yang Harus Dibuat
+- `GET/POST /api/links` - Link management
+- `GET/POST /api/portfolio` - Portfolio management
+- `GET /api/analytics` - Analytics data
+- `POST /api/auth/register` - User registration
+- `GET /api/[username]` - Public profile data
+- `POST /api/click-tracking` - Track link clicks
+
+## Keamanan & Validasi
+- Zod untuk schema validation
+- Rate limiting dengan Upstash Redis
+- Input sanitization
+- File upload validation
+- URL validation untuk links
+- Username validation (alphanumeric + underscore)
+
+## Performance Optimizations
+- Next.js Image component
+- Dynamic imports
+- React.memo untuk komponen berat
+- Supabase real-time subscriptions
+- CDN untuk static assets
+- Compression middleware
+
+## Deployment Checklist
+- Environment variables setup
+- Supabase RLS policies
+- Domain configuration
+- SSL certificate
+- Performance monitoring
+- Error tracking (Sentry)
+
+## Instruksi Khusus untuk AI
+1. Gunakan TypeScript strict mode
+2. Implementasikan error handling yang robust
+3. Buat komponen reusable dengan proper props
+4. Gunakan Server Components dimana memungkinkan
+5. Implementasikan loading dan error states
+6. Tambahkan proper TypeScript interfaces
+7. Gunakan Tailwind CSS untuk styling
+8. Implementasikan responsive design (mobile-first)
+9. Buat proper SEO metadata untuk setiap halaman
+10. Tambahkan proper accessibility (a11y) attributes
+
+## Testing Requirements
+- Unit tests untuk utility functions
+- Integration tests untuk API endpoints
+- E2E tests untuk user flows kritis
+- Performance testing dengan Lighthouse
+
+Buat aplikasi ini step by step, mulai dari setup project, database schema, authentication, kemudian fitur-fitur utama. Pastikan setiap step dijelaskan dengan detail dan include best practices untuk security dan performance.
+
+
+
+# Prompt Detail: Flow Aplikasi & Fitur Lengkap
+
+## Flow Utama Aplikasi
+
+### 1. Landing Page
+**Tujuan**: Halaman utama yang menarik untuk convert visitor menjadi user
+**Komponen**:
+- Hero section dengan value proposition
+- Fitur unggulan (Brand vs Content Creator)
+- Testimoni/review
+- Pricing (jika ada)
+- FAQ section
+- Footer dengan link penting
+
+**CTA Buttons**:
+- "Bergabung Sekarang" (primary)
+- "Mulai Gratis" (secondary)
+- "Masuk" (di header)
+
+**Logic Flow**:
+```
+User klik "Bergabung/Mulai" → Cek session → 
+Jika belum login → Redirect ke register
+Jika sudah login → Redirect ke dashboard
+```
+
+### 2. Register Page
+**URL**: `/register`
+**Form Fields**:
+```typescript
+interface RegisterForm {
+  role: 'brand' | 'talent'; // Required - Radio button atau card selection
+  email: string; // Required - Validasi format email
+  password: string; // Required - Min 8 karakter, 1 huruf besar, 1 angka
+  confirmPassword: string; // Required - Harus sama dengan password
+}
+```
+
+**UI/UX**:
+- Step 1: Pilih role (Brand/Content Creator) dengan visual card
+- Step 2: Form registrasi
+- Checkbox persetujuan: "Dengan mendaftar, saya menyetujui Syarat & Ketentuan dan Kebijakan Privasi"
+- Button "Daftar" (disabled sampai form valid)
+
+**Validasi Real-time**:
+- Email format validation
+- Password strength indicator
+- Confirm password match
+- Role selection required
+
+**Success Flow**:
+```
+Submit → API validation → Kirim email verifikasi → 
+Tampilkan halaman "Verifikasi Email" dengan:
+- Pesan: "Kami telah mengirim link verifikasi ke email Anda"
+- Button "Kembali ke Login"
+- Button "Kirim Ulang" (disabled 60 detik)
+```
+
+### 3. Login Page
+**URL**: `/login`
+**Form Fields**:
+```typescript
+interface LoginForm {
+  email: string; // Required
+  password: string; // Required
+}
+```
+
+**Features**:
+- "Ingat Saya" checkbox
+- "Lupa Password?" link
+- Link ke register page
+- Social login (opsional)
+
+**Validation Logic**:
+```
+Submit → API auth → 
+Jika email belum verified → Tampilkan notifikasi:
+"Email Anda belum diverifikasi. Silakan cek email atau kirim ulang link verifikasi"
+- Button "Kirim Ulang Verifikasi" (cooldown 60 detik)
+- Timer countdown visible
+
+Jika berhasil → Redirect ke:
+- Complete profile (jika profile belum lengkap)
+- Dashboard (jika profile sudah lengkap)
+```
+
+### 4. Complete Profile Page
+**URL**: `/complete-profile`
+**Purpose**: Wajib diisi setelah registrasi berhasil
+
+**Form Fields**:
+```typescript
+interface CompleteProfileForm {
+  username: string; // Required - Unique, auto-check availability
+  fullName: string; // Required
+  birthDate: string; // Required - Format DD-MM-YYYY
+}
+```
+
+**Username Validation**:
+- Auto-check availability setelah 2 detik tidak mengetik
+- Visual indicator: ✅ Tersedia / ❌ Tidak tersedia / ⏳ Mengecek...
+- Rules: 3-20 karakter, hanya huruf, angka, underscore
+- Tidak boleh: admin, api, www, app, dll (reserved words)
+
+**API Endpoint**: `POST /api/auth/complete-profile`
+
+## Dashboard Structure
+
+### Sidebar Menu
+
+#### Global Menu (Semua Role)
+```
+📊 Dashboard (Overview)
+📈 Analitik
+🔗 Link Sosial
+🎨 Tema
+📱 Link Kustom
+⚙️  Pengaturan
+```
+
+#### Content Creator Menu
+```
+👤 Profil Kreator
+📁 Portfolio (soon)
+🎯 Niche Management
+```
+
+#### Brand Menu
+```
+🏢 Profil Brand
+📊 Kategori Bisnis
+```
+
+#### Admin Menu (Role: admin)
+```
+👥 Manajemen User
+🏷️  Manajemen Niche
+🏢 Manajemen Kategori Bisnis
+🌍 Manajemen Kota
+📊 Statistik Global
+🔧 Pengaturan Sistem
+```
+
+## Fitur Detail per Menu
+
+### 1. Dashboard Overview
+**File**: `dashboard/overview/page.tsx`
+**API**: `GET /api/dashboard/stats`
+
+**Metrics**:
+- Total kunjungan link bio hari ini/minggu/bulan
+- Total klik link
+- Link paling populer
+- Negara pengunjung terbanyak
+- Grafik kunjungan (Chart.js)
+
+### 2. Analitik
+**File**: `dashboard/analytics/page.tsx`
+**API**: `GET /api/analytics/detailed`
+
+**Features**:
+- Filter tanggal (7 hari, 30 hari, 3 bulan, custom)
+- Real-time visitor count
+- Click-through rate per link
+- Geographic data (peta dengan markers)
+- Device breakdown (desktop/mobile/tablet)
+- Browser statistics
+- Referrer sources
+- Export data (CSV/PDF)
+
+### 3. Link Sosial
+**File**: `dashboard/social-links/page.tsx`
+**API**: `GET/POST/PUT/DELETE /api/social-links`
+
+**Supported Platforms**:
+```typescript
+const socialPlatforms = [
+  { name: 'Instagram', icon: 'instagram', baseUrl: 'https://instagram.com/' },
+  { name: 'TikTok', icon: 'tiktok', baseUrl: 'https://tiktok.com/@' },
+  { name: 'Facebook', icon: 'facebook', baseUrl: 'https://facebook.com/' },
+  { name: 'Twitter/X', icon: 'twitter', baseUrl: 'https://x.com/' },
+  { name: 'YouTube', icon: 'youtube', baseUrl: 'https://youtube.com/@' },
+  { name: 'LinkedIn', icon: 'linkedin', baseUrl: 'https://linkedin.com/in/' },
+  { name: 'WhatsApp', icon: 'whatsapp', baseUrl: 'https://wa.me/' },
+  { name: 'Telegram', icon: 'telegram', baseUrl: 'https://t.me/' },
+];
+```
+
+**CRUD Operations**:
+- Tambah link sosial (dropdown platform + username/URL)
+- Edit link (ubah username/URL)
+- Hapus link (konfirmasi dialog)
+- Toggle aktif/nonaktif
+- Drag & drop untuk urutan
+
+### 4. Link Kustom
+**File**: `dashboard/custom-links/page.tsx`
+**API**: `GET/POST/PUT/DELETE /api/custom-links`
+
+**Form Fields**:
+```typescript
+interface CustomLink {
+  id?: string;
+  title: string; // Required - Max 50 karakter
+  url: string; // Required - Valid URL dengan https://
+  description?: string; // Optional - Max 100 karakter
+  thumbnail?: string; // Optional - Auto-generate dari URL atau upload
+  isActive: boolean; // Default true
+  orderIndex: number; // Untuk sorting
+  clickCount: number; // Read-only
+}
+```
+
+**Features**:
+- Auto-generate thumbnail dari URL (Open Graph)
+- Manual thumbnail upload
+- Link preview
+- Bulk actions (activate/deactivate multiple)
+- Search & filter links
+- Analytics per link
+
+### 5. Tema
+**File**: `dashboard/theme/page.tsx`
+**API**: `GET/PUT /api/theme`
+
+**Theme Options**:
+```typescript
+interface ThemeConfig {
+  backgroundColor: string; // Background link bio page
+  buttonColor: string; // Warna button/link
+  textColor: string; // Warna teks
+  accentColor: string; // Warna aksen
+  fontFamily: 'inter' | 'poppins' | 'roboto' | 'playfair'; // Font options
+  buttonStyle: 'rounded' | 'square' | 'pill'; // Bentuk button
+  layout: 'classic' | 'modern' | 'minimal'; // Layout style
+}
+```
+
+**Color Palettes**:
+```typescript
+const colorPalettes = [
+  { name: 'Classic', colors: ['#000000', '#FFFFFF', '#6366F1'] },
+  { name: 'Ocean', colors: ['#0EA5E9', '#0F172A', '#FFFFFF'] },
+  { name: 'Sunset', colors: ['#F97316', '#FED7AA', '#1F2937'] },
+  { name: 'Forest', colors: ['#059669', '#ECFDF5', '#374151'] },
+  { name: 'Rose', colors: ['#F43F5E', '#FDF2F8', '#1F2937'] },
+  // Custom palette option
+];
+```
+
+**Preview**:
+- Live preview link bio page
+- Mobile/desktop preview toggle
+- Save & apply theme
+
+### 6. Profil Content Creator
+**File**: `dashboard/creator-profile/page.tsx`
+**API**: `GET/PUT /api/profile/creator`
+
+**Form Fields**:
+```typescript
+interface CreatorProfile {
+  fullName: string; // Required - Max 50 karakter
+  niche: string[]; // Required - Max 3 pilihan dari master data
+  tagline: string; // Required - Max 60 karakter, 1 kalimat
+  bio: string; // Required - Max 500 karakter, rich text editor
+  birthDate: string; // Required - DD-MM-YYYY
+  hideAge: boolean; // Default false
+  profilePhoto?: string; // Optional - Upload atau URL
+  location: string; // Required - Dropdown kota di Indonesia
+  website?: string; // Optional - Valid URL
+  experience?: number; // Optional - Tahun pengalaman
+}
+```
+
+**Niche Options** (Master Data):
+```
+🎨 Desain Grafis, 📸 Fotografi, 🎬 Video Editing, 
+✍️ Content Writing, 📱 Social Media, 🎵 Musik,
+🍳 Kuliner, 👗 Fashion, 💄 Beauty, 🏋️ Fitness,
+🎮 Gaming, 💻 Tech, 📚 Edukasi, 🎭 Entertainment,
+💼 Business, 🏠 Lifestyle, ✈️ Travel, 🎨 Art
+```
+
+### 7. Profil Brand
+**File**: `dashboard/brand-profile/page.tsx`
+**API**: `GET/PUT /api/profile/brand`
+
+**Form Fields**:
+```typescript
+interface BrandProfile {
+  brandName: string; // Required - Nama lengkap brand
+  businessCategory: string; // Required - Dropdown kategori
+  bio: string; // Required - Max 500 karakter
+  establishedDate: string; // Required - DD-MM-YYYY
+  hideEstablished: boolean; // Default false
+  logo?: string; // Optional - Upload logo
+  location: string; // Required - Dropdown kota
+  website?: string; // Optional - Website brand
+  employeeCount?: string; // Optional - Range karyawan
+}
+```
+
+**Business Categories**:
+```
+🛍️ E-commerce, 🍕 F&B, 👗 Fashion, 💄 Beauty,
+🏠 Property, 🚗 Otomotif, 💻 Technology, 📚 Edukasi,
+🏥 Kesehatan, 💰 Finansial, ✈️ Travel, 🎮 Gaming,
+🏋️ Fitness, 🎨 Kreatif, 📱 Digital Agency, 🏢 Konsultan
+```
+
+### 8. Pengaturan Akun
+**File**: `dashboard/settings/page.tsx`
+
+**Sections**:
+
+#### Keamanan Akun
+- **Ganti Password**: Form dengan password lama + password baru
+- **Email**: Read-only, tampilkan email terdaftar
+- **Username**: Read-only, tampilkan username
+- **Two-Factor Authentication**: Enable/disable 2FA
+
+#### Privasi
+- **Visibilitas Profil**: Public/Private toggle
+- **SEO Settings**: Meta title, description untuk link bio
+- **Custom Domain**: Input domain kustom (premium feature)
+
+#### Hapus Akun
+- **Delete Account**: Button merah dengan konfirmasi berlapis
+- Konfirmasi: Ketik "HAPUS AKUN SAYA" untuk konfirmasi
+- Warning: Data tidak dapat dikembalikan
+
+## Dashboard Admin
+
+### 1. Manajemen User
+**File**: `admin/users/page.tsx`
+**API**: `GET/PUT/DELETE /api/admin/users`
+
+**Features**:
+- Tabel user dengan pagination
+- Filter: Role, status, tanggal daftar
+- Search: Email, username, nama
+- Actions: View profile, suspend, delete
+- Bulk actions
+- Export user data
+
+### 2. Manajemen Niche
+**File**: `admin/niches/page.tsx`
+**API**: `GET/POST/PUT/DELETE /api/admin/niches`
+
+**CRUD**:
+- Tambah niche baru (nama + emoji icon)
+- Edit niche
+- Hapus niche (cek dependency ke user)
+- Aktif/nonaktif niche
+
+### 3. Manajemen Kategori Bisnis
+**File**: `admin/business-categories/page.tsx`
+**API**: `GET/POST/PUT/DELETE /api/admin/business-categories`
+
+**CRUD**:
+- Tambah kategori bisnis
+- Edit kategori
+- Hapus kategori
+- Aktif/nonaktif
+
+### 4. Manajemen Kota
+**File**: `admin/cities/page.tsx`
+**API**: `GET/POST/PUT/DELETE /api/admin/cities`
+
+**CRUD**:
+- Tambah kota baru
+- Edit nama kota
+- Hapus kota
+- Bulk import dari CSV
+
+## Public Bio Page
+
+### URL Structure
+```
+/{username} - Bio page utama
+/{username}/analytics - Analytics (private, owner only)
+```
+
+### Bio Page Features
+**File**: `[username]/page.tsx`
+**API**: `GET /api/public/[username]`
+
+**SEO Optimization**:
+```typescript
+// Dynamic metadata
+export async function generateMetadata({ params }): Promise<Metadata> {
+  const profile = await getPublicProfile(params.username);
+  
+  return {
+    title: profile.seoTitle || `${profile.fullName} - LinkHub`,
+    description: profile.seoDescription || profile.bio,
+    openGraph: {
+      title: profile.fullName,
+      description: profile.bio,
+      images: [profile.profilePhoto],
+      url: `${process.env.NEXT_PUBLIC_APP_URL}/${params.username}`,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: profile.fullName,
+      description: profile.bio,
+      images: [profile.profilePhoto],
+    },
+  };
+}
+```
+
+## Notification System
+
+### Toast Notifications
+**File**: `components/ui/toast.tsx`
+
+**Types**:
+```typescript
+type ToastType = 'success' | 'error' | 'warning' | 'info' | 'loading';
+
+interface Toast {
+  id: string;
+  type: ToastType;
+  title: string;
+  message?: string;
+  duration?: number; // Default 5000ms
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
+}
+```
+
+**Pesan Standar**:
+```typescript
+const TOAST_MESSAGES = {
+  // Success
+  PROFILE_UPDATED: 'Profil berhasil diperbarui',
+  LINK_ADDED: 'Link berhasil ditambahkan',
+  LINK_DELETED: 'Link berhasil dihapus',
+  THEME_SAVED: 'Tema berhasil disimpan',
+  
+  // Error
+  PROFILE_UPDATE_FAILED: 'Gagal memperbarui profil',
+  INVALID_URL: 'URL tidak valid',
+  USERNAME_TAKEN: 'Username sudah digunakan',
+  
+  // Loading
+  SAVING_PROFILE: 'Menyimpan profil...',
+  UPLOADING_IMAGE: 'Mengunggah gambar...',
+  CHECKING_USERNAME: 'Mengecek ketersediaan username...',
+};
+```
+
+## Loading States
+
+### Component Loading
+```typescript
+// Button loading
+<Button disabled={isLoading}>
+  {isLoading ? <Spinner className="mr-2" /> : null}
+  {isLoading ? 'Menyimpan...' : 'Simpan'}
+</Button>
+
+// Page loading
+<div className="flex items-center justify-center h-64">
+  <Spinner size="lg" />
+  <span className="ml-2">Memuat data...</span>
+</div>
+
+// Skeleton loading untuk cards
+<div className="animate-pulse">
+  <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+  <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+</div>
+```
+
+## API Routes Structure
+
+### Authentication
+```
+POST /api/auth/register
+POST /api/auth/login  
+POST /api/auth/logout
+POST /api/auth/forgot-password
+POST /api/auth/reset-password
+POST /api/auth/verify-email
+POST /api/auth/resend-verification
+POST /api/auth/complete-profile
+```
+
+### Profile Management
+```
+GET /api/profile
+PUT /api/profile
+GET /api/profile/creator
+PUT /api/profile/creator  
+GET /api/profile/brand
+PUT /api/profile/brand
+```
+
+### Links Management
+```
+GET /api/social-links
+POST /api/social-links
+PUT /api/social-links/[id]
+DELETE /api/social-links/[id]
+
+GET /api/custom-links
+POST /api/custom-links
+PUT /api/custom-links/[id]
+DELETE /api/custom-links/[id]
+```
+
+### Analytics
+```
+GET /api/analytics/overview
+GET /api/analytics/detailed
+POST /api/analytics/track-click
+GET /api/analytics/export
+```
+
+### Public API
+```
+GET /api/public/[username]
+POST /api/public/track-visit
+GET /api/public/check-username
+```
+
+### Admin API
+```
+GET /api/admin/users
+PUT /api/admin/users/[id]
+DELETE /api/admin/users/[id]
+
+GET /api/admin/niches
+POST /api/admin/niches
+PUT /api/admin/niches/[id]
+DELETE /api/admin/niches/[id]
+
+GET /api/admin/business-categories
+POST /api/admin/business-categories
+PUT /api/admin/business-categories/[id]
+DELETE /api/admin/business-categories/[id]
+
+GET /api/admin/cities
+POST /api/admin/cities
+PUT /api/admin/cities/[id]
+DELETE /api/admin/cities/[id]
+```
+
+## Security Implementation
+
+### Input Sanitization
+```typescript
+import DOMPurify from 'isomorphic-dompurify';
+import { z } from 'zod';
+
+// Schema validation
+const profileSchema = z.object({
+  fullName: z.string().min(2).max(50).trim(),
+  bio: z.string().max(500).transform(val => DOMPurify.sanitize(val)),
+  website: z.string().url().optional().or(z.literal('')),
+});
+
+// Rate limiting
+import { Ratelimit } from '@upstash/ratelimit';
+import { Redis } from '@upstash/redis';
+
+const ratelimit = new Ratelimit({
+  redis: Redis.fromEnv(),
+  limiter: Ratelimit.slidingWindow(15, '1 m'), // 15 requests per minute
+});
+```
+
+### Error Handling
+```typescript
+// Global error handler
+export class AppError extends Error {
+  statusCode: number;
+  isOperational: boolean;
+
+  constructor(message: string, statusCode: number) {
+    super(message);
+    this.statusCode = statusCode;
+    this.isOperational = true;
+  }
+}
+
+// API error response
+export function handleApiError(error: unknown, req: NextRequest) {
+  if (error instanceof AppError) {
+    return NextResponse.json(
+      { error: error.message },
+      { status: error.statusCode }
+    );
+  }
+  
+  return NextResponse.json(
+    { error: 'Terjadi kesalahan server' },
+    { status: 500 }
+  );
+}
+```
+
+## File Upload
+
+### Image Upload Configuration
+```typescript
+// lib/upload.ts
+export const uploadConfig = {
+  maxFileSize: 5 * 1024 * 1024, // 5MB
+  allowedTypes: ['image/jpeg', 'image/png', 'image/webp'],
+  dimensions: {
+    profile: { width: 400, height: 400 },
+    thumbnail: { width: 200, height: 200 },
+  },
+};
+
+// Supabase storage buckets
+const STORAGE_BUCKETS = {
+  PROFILES: 'profile-images',
+  THUMBNAILS: 'link-thumbnails',
+  LOGOS: 'brand-logos',
+};
+```
+
+Buat aplikasi dengan struktur file yang terpisah per fitur, implementasi keamanan yang kuat, notifikasi yang jelas, dan UX yang smooth dengan loading states yang proper. Pastikan semua teks menggunakan bahasa Indonesia yang baik dan benar.
+
+Detail Lengkap UI/UX dan Konfigurasi Sistem
+
+## Landing Page Design (Modern & Interactive)
+
+### Hero Section
+```typescript
+interface HeroSection {
+  headline: "Satu Link untuk Semua Platform Anda"
+  subheadline: "Platform link in bio terpercaya untuk Brand dan Content Creator Indonesia"
+  backgroundStyle: "gradient-animation" // Moving gradient background
+  ctaButtons: [
+    { text: "Mulai Gratis", style: "primary-animated", action: "register" },
+    { text: "Lihat Demo", style: "secondary-glass", action: "demo" }
+  ]
+  heroVideo: "auto-play-background-video" // Subtle animated background
+  socialProof: "2000+ Creator & Brand Terpercaya"
+}
+```
+
+### Interactive Features
+- **Floating elements** dengan CSS animations
+- **Parallax scrolling** untuk sections
+- **Hover animations** pada cards dan buttons
+- **Smooth scroll** antar sections
+- **Typing animation** untuk tagline
+- **Counter animation** untuk statistik
+- **Glassmorphism** design elements
+
+## Public Bio Page Layouts
+
+### Brand Layout (Default Linktree Style)
+```typescript
+interface BrandBioLayout {
+  structure: {
+    header: {
+      logo: "circular-profile-image",
+      brandName: "bold-typography",
+      tagline: "subtitle-style",
+      bio: "clean-paragraph"
+    },
+    linksSection: {
+      style: "stacked-buttons",
+      animation: "fade-in-up-stagger",
+      buttonStyle: "rounded-corners-shadow",
+      spacing: "comfortable-16px"
+    },
+    socialLinks: {
+      position: "bottom-center",
+      style: "icon-row",
+      animation: "scale-on-hover"
+    }
+  },
+  colorSchemes: [
+    "minimal-white", "corporate-blue", "elegant-black", 
+    "warm-orange", "fresh-green", "custom-brand-colors"
+  ]
+}
+```
+
+### Content Creator Layout (Advanced)
+```typescript
+interface CreatorBioLayout {
+  layouts: {
+    showcase: {
+      header: "large-profile-with-stats",
+      portfolioPreview: "featured-work-grid-3x2",
+      socialMetrics: "follower-counts-animated",
+      ctaSection: "collaboration-buttons"
+    },
+    minimal: {
+      header: "aesthetic-profile",
+      contentGrid: "pinterest-style-masonry",
+      categories: "filter-tabs-animated",
+      showcase: "image-carousel"
+    },
+    professional: {
+      header: "business-card-style",
+      services: "pricing-cards",
+      testimonials: "rotating-quotes",
+      booking: "calendar-integration"
+    }
+  },
+  interactiveElements: {
+    portfolioGallery: "lightbox-modal",
+    videoPlayer: "embedded-with-controls",
+    contactForm: "slide-up-modal",
+    shareButtons: "floating-sidebar"
+  }
+}
+```
+
+### Advanced Creator Features
+```typescript
+interface CreatorAdvancedFeatures {
+  portfolioShowcase: {
+    gridLayout: "masonry" | "grid" | "carousel",
+    filterTabs: ["Semua", "Fotografi", "Design", "Video"],
+    lightboxGallery: true,
+    videoEmbeds: ["YouTube", "Vimeo", "TikTok"],
+    projectDetails: {
+      title: string,
+      description: string,
+      technologies: string[],
+      client: string,
+      year: number,
+      projectUrl?: string
+    }
+  },
+  serviceOfferings: {
+    pricingCards: true,
+    bookingIntegration: "calendly-embed",
+    testimonialCarousel: true,
+    portfolioCategories: true
+  },
+  socialProof: {
+    followerCounts: "auto-fetch-from-apis",
+    recentWork: "instagram-feed-integration",
+    clientLogos: "brand-showcase-section",
+    achievements: "badge-system"
+  }
+}
+```
+
+## Environment Configuration (.env.local)
+
+```env
+# ================================
+# APP CONFIGURATION
+# ================================
+NEXT_PUBLIC_APP_NAME="LinkHub Indonesia"
+NEXT_PUBLIC_APP_URL="https://linkhub.id"
+NEXT_PUBLIC_APP_DESCRIPTION="Platform link in bio #1 di Indonesia untuk Brand dan Content Creator"
+NEXT_PUBLIC_APP_KEYWORDS="link bio, linktree indonesia, content creator, brand marketing, social media"
+NEXT_PUBLIC_APP_AUTHOR="LinkHub Indonesia"
+NEXT_PUBLIC_APP_VERSION="1.0.0"
+
+# ================================
+# SEO & METADATA
+# ================================
+NEXT_PUBLIC_SEO_TITLE_TEMPLATE="%s | LinkHub Indonesia"
+NEXT_PUBLIC_SEO_DEFAULT_TITLE="LinkHub - Platform Link Bio Terpercaya Indonesia"
+NEXT_PUBLIC_SEO_SITE_NAME="LinkHub Indonesia"
+NEXT_PUBLIC_SEO_LOCALE="id_ID"
+NEXT_PUBLIC_SEO_TWITTER_HANDLE="@linkhub_id"
+NEXT_PUBLIC_SEO_FB_APP_ID="your_facebook_app_id"
+
+# ================================
+# SUPABASE CONFIGURATION
+# ================================
+NEXT_PUBLIC_SUPABASE_URL="https://your-project-ref.supabase.co"
+NEXT_PUBLIC_SUPABASE_ANON_KEY="your_supabase_anon_key"
+SUPABASE_SERVICE_ROLE_KEY="your_supabase_service_role_key"
+SUPABASE_JWT_SECRET="your_jwt_secret"
+
+# ================================
+# CLOUDFLARE CONFIGURATION
+# ================================
+CLOUDFLARE_ACCOUNT_ID="your_cloudflare_account_id"
+CLOUDFLARE_API_TOKEN="your_cloudflare_api_token"
+CLOUDFLARE_ZONE_ID="your_zone_id"
+CLOUDFLARE_R2_ACCESS_KEY="your_r2_access_key"
+CLOUDFLARE_R2_SECRET_KEY="your_r2_secret_key"
+CLOUDFLARE_R2_BUCKET_NAME="linkhub-storage"
+CLOUDFLARE_R2_PUBLIC_URL="https://storage.linkhub.id"
+
+# ================================
+# AUTHENTICATION & SECURITY
+# ================================
+NEXTAUTH_SECRET="your_super_secure_nextauth_secret_key_min_32_chars"
+NEXTAUTH_URL="https://linkhub.id"
+JWT_SECRET="your_jwt_secret_for_custom_auth"
+BCRYPT_ROUNDS=12
+SESSION_MAX_AGE=2592000
+CSRF_SECRET="your_csrf_secret_key"
+
+# ================================
+# EMAIL SERVICE (RESEND)
+# ================================
+RESEND_API_KEY="re_your_resend_api_key"
+RESEND_FROM_EMAIL="noreply@linkhub.id"
+RESEND_FROM_NAME="LinkHub Indonesia"
+SMTP_FROM_EMAIL="noreply@linkhub.id"
+
+# ================================
+# RATE LIMITING (UPSTASH REDIS)
+# ================================
+UPSTASH_REDIS_REST_URL="https://your-redis-url.upstash.io"
+UPSTASH_REDIS_REST_TOKEN="your_upstash_redis_token"
+RATE_LIMIT_REQUESTS=15
+RATE_LIMIT_WINDOW="1m"
+
+# ================================
+# ANALYTICS & MONITORING
+# ================================
+GOOGLE_ANALYTICS_ID="G-XXXXXXXXXX"
+GOOGLE_TAG_MANAGER_ID="GTM-XXXXXXX"
+HOTJAR_SITE_ID="your_hotjar_site_id"
+SENTRY_DSN="https://your-sentry-dsn@sentry.io/project-id"
+VERCEL_ANALYTICS_ID="your_vercel_analytics_id"
+
+# ================================
+# SOCIAL MEDIA INTEGRATIONS
+# ================================
+INSTAGRAM_BASIC_DISPLAY_APP_ID="your_instagram_app_id"
+INSTAGRAM_BASIC_DISPLAY_APP_SECRET="your_instagram_app_secret"
+TIKTOK_CLIENT_KEY="your_tiktok_client_key"
+YOUTUBE_API_KEY="your_youtube_api_key"
+FACEBOOK_APP_ID="your_facebook_app_id"
+FACEBOOK_APP_SECRET="your_facebook_app_secret"
+
+# ================================
+# THIRD PARTY SERVICES
+# ================================
+CALENDLY_API_TOKEN="your_calendly_personal_access_token"
+UNSPLASH_ACCESS_KEY="your_unsplash_access_key"
+TINIFY_API_KEY="your_tinypng_api_key"
+BROWSERLESS_API_KEY="your_browserless_api_key"
+
+# ================================
+# FEATURE FLAGS
+# ================================
+ENABLE_PORTFOLIO=true
+ENABLE_ANALYTICS=true
+ENABLE_CUSTOM_DOMAIN=true
+ENABLE_API_ACCESS=false
+ENABLE_BULK_OPERATIONS=true
+ENABLE_SOCIAL_LOGIN=true
+ENABLE_EMAIL_VERIFICATION=true
+ENABLE_TWO_FACTOR_AUTH=false
+
+# ================================
+# LIMITS & QUOTAS
+# ================================
+MAX_LINKS_FREE_TIER=10
+MAX_PORTFOLIO_ITEMS_FREE=5
+MAX_FILE_SIZE_MB=5
+MAX_USERNAME_LENGTH=20
+MIN_USERNAME_LENGTH=3
+MAX_BIO_LENGTH=500
+MAX_LINK_TITLE_LENGTH=50
+
+# ================================
+# DEVELOPMENT & DEBUG
+# ================================
+NODE_ENV=production
+DEBUG_MODE=false
+VERBOSE_LOGGING=false
+SKIP_EMAIL_VERIFICATION=false
+MOCK_EXTERNAL_APIS=false
+
+# ================================
+# WEBHOOK ENDPOINTS
+# ================================
+SUPABASE_WEBHOOK_SECRET="your_supabase_webhook_secret"
+STRIPE_WEBHOOK_SECRET="whsec_your_stripe_webhook_secret"
+RESEND_WEBHOOK_SECRET="your_resend_webhook_secret"
+
+# ================================
+# BACKUP & RECOVERY
+# ================================
+BACKUP_ENCRYPTION_KEY="your_backup_encryption_key"
+BACKUP_SCHEDULE="0 2 * * *"
+BACKUP_RETENTION_DAYS=30
+
+# ================================
+# LOCALIZATION
+# ================================
+DEFAULT_LOCALE="id"
+SUPPORTED_LOCALES="id,en"
+TIMEZONE="Asia/Jakarta"
+CURRENCY="IDR"
+DATE_FORMAT="DD/MM/YYYY"
+```
+
+## Password Management System
+
+### Password Requirements
+```typescript
+interface PasswordPolicy {
+  minLength: 8,
+  maxLength: 128,
+  requireUppercase: true,
+  requireLowercase: true,
+  requireNumbers: true,
+  requireSpecialChars: true,
+  forbiddenPatterns: [
+    "123456", "password", "qwerty", "admin", 
+    "linkhub", "12345678", "password123"
+  ],
+  personalInfoCheck: true, // Tidak boleh mengandung nama/email
+  expirationDays: 90, // Optional: password expiry
+  historyCheck: 5 // Tidak boleh sama dengan 5 password terakhir
+}
+```
+
+### Password Strength Indicator
+```typescript
+interface PasswordStrength {
+  score: 0 | 1 | 2 | 3 | 4, // Very Weak to Very Strong
+  feedback: {
+    suggestions: string[],
+    warning: string,
+    color: "red" | "orange" | "yellow" | "blue" | "green",
+    percentage: number
+  },
+  criteria: {
+    length: boolean,
+    uppercase: boolean,
+    lowercase: boolean,
+    numbers: boolean,
+    specialChars: boolean,
+    commonPassword: boolean,
+    personalInfo: boolean
+  }
+}
+```
+
+### Forgot Password Flow
+```typescript
+interface ForgotPasswordFlow {
+  step1: {
+    form: "email-input",
+    validation: "email-exists-check",
+    rateLimit: "3-attempts-per-hour"
+  },
+  step2: {
+    emailSent: "reset-link-with-token",
+    tokenExpiry: "15-minutes",
+    template: "branded-email-template"
+  },
+  step3: {
+    resetForm: "new-password-with-confirm",
+    tokenValidation: "secure-token-check",
+    passwordPolicy: "full-validation"
+  },
+  step4: {
+    success: "auto-login-after-reset",
+    notification: "password-changed-email",
+    securityLog: "password-reset-audit"
+  }
+}
+```
+
+## Modern UI Theme System
+
+### Design Tokens
+```typescript
+interface DesignTokens {
+  colors: {
+    brand: {
+      50: "#eff6ff",
+      500: "#3b82f6", 
+      900: "#1e3a8a"
+    },
+    semantic: {
+      success: "#10b981",
+      warning: "#f59e0b",
+      error: "#ef4444",
+      info: "#06b6d4"
+    },
+    neutral: {
+      0: "#ffffff",
+      50: "#f8fafc",
+      900: "#0f172a",
+      950: "#020617"
+    }
+  },
+  typography: {
+    fonts: {
+      sans: ["Inter", "system-ui", "sans-serif"],
+      display: ["Poppins", "Inter", "sans-serif"],
+      mono: ["JetBrains Mono", "monospace"]
+    },
+    scales: {
+      xs: "0.75rem",
+      sm: "0.875rem", 
+      base: "1rem",
+      lg: "1.125rem",
+      xl: "1.25rem",
+      "2xl": "1.5rem",
+      "3xl": "1.875rem",
+      "4xl": "2.25rem"
+    }
+  },
+  spacing: {
+    grid: "8px", // Base grid unit
+    sections: "clamp(2rem, 5vw, 4rem)",
+    containers: "clamp(1rem, 3vw, 1.5rem)"
+  },
+  animations: {
+    durations: {
+      fast: "150ms",
+      normal: "300ms", 
+      slow: "500ms"
+    },
+    easings: {
+      smooth: "cubic-bezier(0.4, 0, 0.2, 1)",
+      bounce: "cubic-bezier(0.68, -0.55, 0.265, 1.55)",
+      sharp: "cubic-bezier(0.4, 0, 1, 1)"
+    }
+  }
+}
+```
+
+### Interactive Animations
+```typescript
+interface AnimationLibrary {
+  pageTransitions: {
+    fadeIn: "opacity-0 to opacity-100",
+    slideUp: "translate-y-4 to translate-y-0", 
+    staggerChildren: "delay-based-child-animations"
+  },
+  microInteractions: {
+    buttonPress: "scale-98 active:scale-95",
+    cardHover: "hover:scale-105 hover:shadow-xl",
+    inputFocus: "focus:ring-2 focus:ring-brand-500"
+  },
+  loadingStates: {
+    skeleton: "animate-pulse bg-gradient-shimmer",
+    spinner: "animate-spin border-t-transparent",
+    progress: "animate-progress-bar"
+  },
+  gestureAnimations: {
+    swipeToDelete: "swipe-x-threshold-animation",
+    pullToRefresh: "pull-down-elastic-animation",
+    dragReorder: "drag-preview-ghost-animation"
+  }
+}
+```
+
+## SEO Implementation
+
+### Dynamic Meta Tags
+```typescript
+interface SEOConfig {
+  defaultMeta: {
+    title: "LinkHub - Platform Link Bio #1 Indonesia",
+    description: "Buat link bio yang menarik untuk Brand dan Content Creator. Gratis, mudah, dan powerful untuk social media marketing Anda.",
+    keywords: "link bio indonesia, linktree indonesia, content creator tools, brand marketing, social media bio",
+    author: "LinkHub Indonesia",
+    robots: "index, follow",
+    language: "id-ID",
+    revisitAfter: "7 days"
+  },
+  dynamicMeta: {
+    userProfile: {
+      title: "{fullName} - {accountType} | LinkHub",
+      description: "{bio} - Temukan semua link {fullName} di satu tempat.",
+      keywords: "{niche}, {location}, content creator indonesia, {fullName}",
+      canonical: "https://linkhub.id/{username}"
+    },
+    dashboard: {
+      title: "Dashboard - LinkHub",
+      description: "Kelola link bio, analitik, dan profil Anda dengan mudah.",
+      robots: "noindex, nofollow"
+    }
+  },
+  structuredData: {
+    organization: "LinkHub Indonesia Organization Schema",
+    website: "Website Navigation Schema", 
+    person: "Person Schema for Content Creators",
+    localBusiness: "Local Business Schema for Brands"
+  }
+}
+```
+
+### Sitemap Generation
+```typescript
+interface SitemapConfig {
+  staticPages: [
+    { url: "/", priority: 1.0, changefreq: "daily" },
+    { url: "/pricing", priority: 0.8, changefreq: "weekly" },
+    { url: "/features", priority: 0.8, changefreq: "weekly" },
+    { url: "/help", priority: 0.6, changefreq: "monthly" }
+  ],
+  dynamicPages: {
+    userProfiles: {
+      pattern: "/{username}",
+      priority: 0.7,
+      changefreq: "weekly",
+      lastmod: "profile.updated_at"
+    }
+  },
+  excludePatterns: [
+    "/dashboard/*",
+    "/admin/*", 
+    "/api/*",
+    "/auth/*"
+  ]
+}
+```
+
+## Free Tier Service Integrations
+
+### Cloudflare Services
+```typescript
+interface CloudflareIntegration {
+  cdn: {
+    caching: "aggressive-static-asset-caching",
+    compression: "brotli-gzip-auto",
+    minification: "html-css-js-auto"
+  },
+  r2Storage: {
+    buckets: ["profile-images", "thumbnails", "backups"],
+    publicAccess: "custom-domain-mapping",
+    lifecycle: "auto-delete-unused-files-30-days"
+  },
+  analytics: {
+    webAnalytics: "privacy-first-analytics",
+    performance: "core-web-vitals-monitoring"
+  },
+  security: {
+    ddosProtection: "automatic-mitigation",
+    botManagement: "challenge-bad-bots",
+    ssl: "flexible-ssl-certificates"
+  },
+  workers: {
+    imageResizing: "on-the-fly-image-optimization",
+    edgeComputing: "geo-distributed-api-responses"
+  }
+}
+```
+
+### Free Email Services
+```typescript
+interface EmailServiceConfig {
+  resend: {
+    freeLimit: "3000-emails-per-month",
+    templates: {
+      welcome: "brand-welcome-email",
+      verification: "email-verification-code",
+      passwordReset: "secure-reset-link",
+      analytics: "weekly-stats-digest"
+    },
+    automation: {
+      onboarding: "5-email-sequence",
+      retention: "monthly-tips-newsletter"
+    }
+  },
+  fallbackSMTP: {
+    service: "gmail-app-passwords",
+    rateLimit: "100-emails-per-day",
+    useCase: "backup-email-delivery"
+  }
+}
+```
+
+### Analytics & Monitoring (Free Tier)
+```typescript
+interface FreeAnalyticsStack {
+  vercelAnalytics: {
+    webVitals: "core-web-vitals-tracking",
+    pageViews: "privacy-compliant-analytics",
+    performance: "edge-function-metrics"
+  },
+  googleAnalytics: {
+    ga4: "enhanced-ecommerce-tracking",
+    events: "custom-conversion-tracking",
+    audiences: "user-segmentation"
+  },
+  uptimeMonitoring: {
+    service: "uptime-robot-free",
+    endpoints: ["api-health", "database-connection"],
+    alerts: "email-sms-notifications"
+  },
+  errorTracking: {
+    sentry: "10k-errors-per-month",
+    performance: "transaction-monitoring",
+    alerts: "real-time-error-notifications"
+  }
+}
+```
+
+## Advanced Bio Page Features
+
+### Interactive Elements
+```typescript
+interface InteractiveBioElements {
+  clickAnimations: {
+    linkButtons: "ripple-effect-on-click",
+    socialIcons: "bounce-scale-animation",
+    profileImage: "subtle-pulse-hover"
+  },
+  backgroundEffects: {
+    particles: "floating-geometric-shapes",
+    gradients: "animated-mesh-gradients", 
+    videos: "looping-background-videos"
+  },
+  scrollAnimations: {
+    parallax: "background-elements-parallax",
+    reveal: "content-fade-in-on-scroll",
+    progress: "reading-progress-indicator"
+  },
+  engagement: {
+    visitorCounter: "real-time-visitor-count",
+    shareButtons: "native-web-share-api",
+    qrCode: "dynamic-qr-code-generation"
+  }
+}
+```
+
+### Content Creator Showcase
+```typescript
+interface CreatorShowcaseFeatures {
+  portfolioGrid: {
+    layout: "masonry-isotope-filtering",
+    lightbox: "swipe-gallery-with-captions",
+    categories: "animated-filter-tabs",
+    loadMore: "infinite-scroll-pagination"
+  },
+  serviceOfferings: {
+    pricingCards: "comparison-table-with-features",
+    booking: "embedded-calendly-widget",
+    testimonials: "rotating-client-reviews",
+    process: "step-by-step-workflow-visualization"
+  },
+  socialProof: {
+    liveFollowerCount: "api-integrated-social-metrics",
+    recentWork: "instagram-feed-integration",
+    clientLogos: "infinite-scrolling-logo-carousel",
+    achievements: "animated-counter-statistics"
+  }
+}
+```
+
+## Missing Features & Enhancements
+
+### User Experience Improvements
+```typescript
+interface UXEnhancements {
+  onboarding: {
+    interactiveTour: "product-tour-with-tooltips",
+    progressTracking: "completion-percentage-indicator",
+    templates: "pre-made-bio-templates-by-industry"
+  },
+  accessibility: {
+    keyboardNavigation: "full-keyboard-accessibility",
+    screenReader: "aria-labels-and-descriptions",
+    colorContrast: "wcag-aa-compliant-colors",
+    reducedMotion: "respect-prefers-reduced-motion"
+  },
+  performance: {
+    imageLazyLoading: "intersection-observer-lazy-loading",
+    codesplitting: "route-based-code-splitting",
+    prefetching: "next-link-prefetching",
+    caching: "swr-data-fetching-with-cache"
+  }
+}
+```
+
+### Advanced Analytics
+```typescript
+interface AdvancedAnalytics {
+  realTimeMetrics: {
+    liveVisitors: "websocket-real-time-updates",
+    clickTracking: "heatmap-click-visualization",
+    scrollDepth: "content-engagement-metrics",
+    timeOnPage: "session-duration-tracking"
+  },
+  insights: {
+    topContent: "most-clicked-links-analysis",
+    audienceGrowth: "follower-growth-tracking",
+    peakTimes: "optimal-posting-times-suggestion",
+    conversionFunnel: "link-to-action-conversion-tracking"
+  },
+  exports: {
+    reportGeneration: "automated-pdf-reports",
+    dataExport: "csv-json-data-export",
+    apiAccess: "analytics-api-for-integrations"
+  }
+}
+```
+
+### Content Management
+```typescript
+interface ContentManagement {
+  bulkOperations: {
+    multiSelect: "checkbox-selection-with-bulk-actions",
+    batchEdit: "edit-multiple-links-simultaneously",
+    import: "csv-import-for-bulk-link-creation",
+    export: "backup-export-all-user-data"
+  },
+  organization: {
+    folders: "organize-links-in-folders",
+    tagging: "tag-system-for-categorization",
+    search: "full-text-search-across-content",
+    sorting: "drag-drop-reordering-with-save"
+  },
+  scheduling: {
+    publishLater: "schedule-link-activation",
+    expiration: "auto-expire-temporary-links",
+    campaigns: "seasonal-link-campaigns"
+  }
+}
+```
+
+### API & Integrations
+```typescript
+interface APIIntegrations {
+  webhooks: {
+    linkClicks: "real-time-click-notifications",
+    newSignups: "user-registration-webhooks",
+    analytics: "daily-stats-webhook-delivery"
+  },
+  thirdPartyApis: {
+    socialMedia: "auto-fetch-follower-counts",
+    urlPreview: "automatic-link-preview-generation",
+    imageOptimization: "cloudflare-image-resizing",
+    qrGeneration: "dynamic-qr-code-api"
+  },
+  automation: {
+    zapier: "zapier-integration-for-workflows",
+    ifttt: "if-this-then-that-automations",
+    webhookRelay: "custom-automation-triggers"
+  }
+}
+```
+
+Pastikan semua fitur ini menggunakan package gratis, implementasi SEO yang kuat dengan keyword targeting, dan desain yang benar-benar modern dengan animasi yang smooth. Fokus pada user experience yang exceptional dengan loading states yang jelas dan error handling yang user-friendly.
+
+
+RINGKASAN
+
+🎯 Tujuan:
+Kembangkan platform link-in-bio seperti Linktree berbasis Next.js 14+ dengan dukungan Supabase, dengan 2 jenis akun: Brand (basic) dan Content Creator (advanced). Fokus pada public bio page, responsivitas lintas perangkat, SEO kuat, integrasi Cloudflare, serta memuat nilai-nilai & misi dari agensi "Tumbuh Ide".
+
+✅ Fitur yang Perlu Dilengkapi (Tambahan dari Prompt Sebelumnya):
+Bio Page:
+
+Harus modern, responsif, cepat, dan SEO-friendly.
+
+Untuk Brand: gaya simpel seperti Linktree (logo, bio, tombol link, social icon).
+
+Untuk Content Creator: tampilkan profil lebih dinamis (grid portfolio, testimonial, filter by category, animasi interaktif, dsb).
+
+.env Lengkap:
+
+Sertakan semua variabel environment .env.local yang diperlukan: Supabase, Auth, SMTP, Redis, SEO, Cloudflare, Webhook, Third-party API (gratis), Password Policy, Fitur Flag, Limitasi Free Tier.
+
+Password:
+
+Implementasikan password policy (panjang, kombinasi karakter, blacklist umum seperti “123456”).
+
+Buat validator + strength indicator + personal info check.
+
+SEO & Tag System:
+
+Tiap halaman publik (bio, dashboard) punya tag meta dinamis.
+
+Sertakan sitemap, Open Graph, Twitter Card, structured schema JSON-LD.
+
+Gunakan keyword yang ditentukan dari .env.
+
+Cloudflare Integration:
+
+R2 untuk storage (gambar profil, thumbnail, dsb).
+
+Workers untuk image optimization.
+
+CDN, bot protection, Brotli compression, DDoS mitigation.
+
+Tampilan / Tema:
+
+Animasi: fade-in, parallax scroll, hover, ripple effect.
+
+Dark mode + light mode toggle.
+
+Preview live di dashboard (simulasi ponsel).
+
+Gunakan Tailwind CSS, shadcn/ui, Framer Motion.
+
+Komponen Wajib untuk Bio Page:
+
+Avatar/logo bulat.
+
+Header (nama, tagline).
+
+Bio (markdown/rich text).
+
+Tombol link (bisa drag & drop).
+
+Ikon sosial (bisa toggle tampil/simpan).
+
+Statistik pengunjung (privat hanya untuk pemilik).
+
+Tombol kolaborasi (untuk creator).
+
+Showcase karya (grid + lightbox).
+
+Kalender (jika aktifkan booking).
+
+QR Code (dibuat otomatis dari username).
+
+Custom Domain:
+
+Fitur optional untuk creator (gunakan CNAME pointing via Cloudflare).
+
+Gunakan Supabase + DNS Cloudflare API.
+
+Backup & Logging:
+
+Backup otomatis DB ke R2.
+
+Audit log user activity.
+
+Error log (Sentry), monitoring (UptimeRobot).
+
+Identitas Brand:
+
+Setiap halaman/konten menyertakan branding dari “Tumbuh Ide”.
+
+Ajakan tautan balik (e.g. “Powered by Tumbuh Ide”).
+
+Tujuan utama: kolaborasi strategis antara brand <-> kreator = mengenalkan “Tumbuh Ide”.
+
+🧠 Filosofi & Branding (Dari “Tumbuh Ide”)
+🌱 Agensi inklusif, kolaboratif, transparan.
+
+🤝 Semua pihak setara (creator ≠ vendor, brand ≠ klien → semua partner).
+
+🎯 Visi & misi dijalankan lewat fitur nyata: portfolio profesional, kolaborasi terbuka, anti-eksploitasi, mentoring.
+
+🧩 Motto-motto agensi (e.g. “Bukan Sekadar Agensi”) ditampilkan dalam copywriting dan testimonial.
+
+📦 Plugins, Paket, dan Dependency (Hanya yang Gratis)
+Gunakan semua yang tersedia dari:
+
+Next.js, shadcn/ui, Tailwind, Supabase, Cloudflare, Resend, Upstash, Framer Motion, Zod, React Hook Form, SWR.
+
+Jangan pakai tools yang berbayar.
+
+Jangan buat sistem dari nol jika bisa pakai API/layanan gratis yang sudah tersedia.
+
+💡 Petunjuk Teknis Tambahan:
+Semua request frontend → Supabase API via middleware server-side Next.js App Router.
+
+Jangan simpan password secara plain-text, pakai bcrypt.
+
+Gunakan struktur folder modular (per fitur/role).
+
+Terapkan loading state di setiap komponen async.
+
+Implementasikan rate limiter dengan Upstash.
+
+Semua public page → bisa diakses dengan struktur /{username}.
+
+🛡️ Security
+Input sanitization (DOMPurify), CSRF, XSS, JWT, CORS.
+
+Session JWT 30 hari.
+
+Validasi form & API dengan zod.
+
+Upload file divalidasi (ukuran, mime type, dimensi).
